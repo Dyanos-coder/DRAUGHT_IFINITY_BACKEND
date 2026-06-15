@@ -1,0 +1,45 @@
++-----------------------------+------------------------+--------+------+
+| Nom                         | Code                   | Devise | Pays |
++-----------------------------+------------------------+--------+------+
+| Airtel Congo                | airtel_cd              | CDF    | CD   |
+| Airtel Money Malawi         | airtel_mw              | MWK    | MW   |
+| Airtel Money Nigeria        | airtel_ng              | NGN    | NG   |
+| Airtel Rwanda               | airtel_rw              | RWF    | RW   |
+| Airtel Tanzania             | airtel_tz              | TZS    | TZ   |
+| Airtel Uganda               | airtel_ug              | UGX    | UG   |
+| Airtel Zambia               | airtel_zm              | ZMW    | ZM   |
+| Djamo CI                    | djamo_ci               | XOF    | CI   |
+| Djamo SN                    | djamo_sn               | XOF    | SN   |
+| E-Money Senegal             | e_money_sn             | XOF    | SN   |
+| EU Mobile Money Cameroon    | eu_mobile_cm           | XAF    | CM   |
+| Free Money Senegal          | freemoney_sn           | XOF    | SN   |
+| Halopesa                    | halopesa_tz            | TZS    | TZ   |
+| Test Payout Method          | moneroo_payout_demo    | USD    | US   |
+| Moov Money Benin            | moov_bj                | XOF    | BJ   |
+| Moov Money CI               | moov_ci                | XOF    | CI   |
+| Moov Money Togo             | moov_tg                | XOF    | TG   |
+| M-Pesa Kenya                | mpesa_ke               | KES    | KE   |
+| Vodacom Tanzania            | mpesa_tz               | TZS    | TZ   |
+| MTN MoMo Benin              | mtn_bj                 | XOF    | BJ   |
+| MTN MoMo CI                 | mtn_ci                 | XOF    | CI   |
+| MTN MoMo Cameroon           | mtn_cm                 | XAF    | CM   |
+| MTN MoMo Ghana              | mtn_gh                 | GHS    | GH   |
+| MTN Nigeria                 | mtn_ng                 | NGN    | NG   |
+| MTN MoMo Rwanda             | mtn_rw                 | RWF    | RW   |
+| MTN MoMo Uganda             | mtn_ug                 | UGX    | UG   |
+| MTN MoMo Zambia             | mtn_zm                 | ZMW    | ZM   |
+| Orange Congo                | orange_cd              | CDF    | CD   |
+| Orange Money CI             | orange_ci              | XOF    | CI   |
+| Orange Money Cameroon       | orange_cm              | XAF    | CM   |
+| Orange Money Mali           | orange_ml              | XOF    | ML   |
+| Orange Money Senegal        | orange_sn              | XOF    | SN   |
+| Airtel/Tigo Ghana           | tigo_gh                | GHS    | GH   |
+| Tigo Tanzania               | tigo_tz                | TZS    | TZ   |
+| TNM Mpamba Malawi           | tnm_mw                 | MWK    | MW   |
+| Togocel Money               | togocel                | XOF    | TG   |
+| Vodacom Congo               | vodacom_cd             | CDF    | CD   |
+| Vodafone Ghana              | vodafone_gh            | GHS    | GH   |
+| Wave CI                     | wave_ci                | XOF    | CI   |
+| Wave Senegal                | wave_sn                | XOF    | SN   |
+| Zamtel Kwacha               | zamtel_zm              | ZMW    | ZM   |
++-----------------------------+------------------------+--------+------+

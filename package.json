@@ -1,0 +1,42 @@
+{
+  "name": "draught-infinity-backend",
+  "version": "1.0.0",
+  "description": "Backend dédié à l'app mobile Draught Infinity (auth joueurs, parties, puzzles, tournois, classement, portefeuille)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed": "node src/seed.js",
+    "test:game-db": "node test-game-databases.js",
+    "verify:game-db": "node verify-game-databases.js",
+    "fix:player-balances": "node fix-player-balances.js",
+    "check:player-balances": "node check-player-balances.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.6.1",
+    "cors": "^2.8.5",
+    "db": "^6.0.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fedapay": "^1.0.1",
+    "helmet": "^8.1.0",
+    "install": "^0.13.0",
+    "jsonwebtoken": "^9.0.2",
+    "moneroo-nodejs-sdk": "^1.2.3",
+    "mongo": "^0.1.0",
+    "mongodb": "^7.2.0",
+    "mongoose": "^9.6.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^7.0.3",
+    "npm": "^11.4.2",
+    "qs": "^6.14.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

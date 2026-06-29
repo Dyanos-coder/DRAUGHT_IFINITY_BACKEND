@@ -23,12 +23,16 @@ class RealtimeMatchmakingService {
           const gameId = payload.gameId || socket.handshake.auth?.gameId;
           const gameType = payload.gameType || socket.handshake.auth?.gameType || 'english';
 
+          console.log(`🎮 queue_join reçu — socket: ${socket.id} | gameId: ${gameId} | gameType: ${gameType} | token: ${token ? '✓' : '✗ MANQUANT'}`);
+
           if (!token || !gameId) {
+            console.warn(`⚠️ queue_join rejeté — token=${!!token} gameId=${!!gameId}`);
             return this._ack(ack, { ok: false, message: 'Token ou gameId manquant' });
           }
 
           const identity = this._verifyToken(token);
           if (!identity) {
+            console.warn(`⚠️ queue_join rejeté — token invalide (socket ${socket.id})`);
             socket.disconnect(true);
             return this._ack(ack, { ok: false, message: 'Token invalide' });
           }
@@ -43,6 +47,8 @@ class RealtimeMatchmakingService {
 
           this._removeFromQueue(socket.id);
           const waitingPlayer = this._popWaitingPlayer(queueKey);
+
+          console.log(`📋 File [${queueKey}] — joueur en attente: ${waitingPlayer ? waitingPlayer.id : 'aucun'}`);
 
           if (waitingPlayer) {
             const roomId = crypto.randomUUID();
@@ -87,6 +93,7 @@ class RealtimeMatchmakingService {
               whiteMovesDown: true,
             };
 
+            console.log(`✅ Match trouvé — room: ${roomId} | blanc: ${room.players.white.id} | noir: ${room.players.black.id}`);
             waitingPlayer.emit('match_found', matchPayloadForWaiting);
             socket.emit('match_found', matchPayloadForJoining);
             this._ack(ack, { ok: true, matched: true, roomId });
@@ -94,6 +101,7 @@ class RealtimeMatchmakingService {
           }
 
           this._enqueuePlayer(queueKey, socket);
+          console.log(`⏳ Joueur ${socket.id} ajouté à la file [${queueKey}]`);
           socket.emit('queue_status', {
             ok: true,
             status: 'waiting',

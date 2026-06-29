@@ -32,6 +32,7 @@ const Tournament = require('./models/tournament.model');
 const { updateScheduledCommunications } = require('./controllers/communication.controller');
 const monerooRoutes = require('./routes/moneroo.routes');
 const puzzleRoutes = require('./routes/puzzle.routes');
+const friendRoutes = require('./routes/friend.routes');
 const { ensureDailyPuzzles } = require('./services/puzzleService');
 
 // Create Express app
@@ -43,6 +44,24 @@ const io = new Server(server, {
 
 const realtimeMatchmakingService = new RealtimeMatchmakingService(io);
 realtimeMatchmakingService.attach();
+
+// Initialiser le gestionnaire Socket.io global
+const socketManager = require('./services/socketManager');
+socketManager.init(io);
+
+// Chaque joueur rejoint sa chambre privée à la connexion
+io.on('connection', (socket) => {
+  socket.on('join_player_room', (playerId) => {
+    if (playerId) {
+      socket.join(`player_${playerId}`);
+      console.log(`🔌 Player ${playerId} connecté à sa chambre Socket.io`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket déconnecté:', socket.id);
+  });
+});
 
 // Security middleware
 app.use(helmet());
@@ -243,6 +262,7 @@ app.use('/api', gameLinkRoutes);  // Routes pour lier/délier des comptes de jeu
 app.use('/api/game-tournaments', gameTournamentRoutes);  // Routes pour les tournois de jeux
 app.use('/api/wallet', walletRoutes);  // Routes pour le portefeuille (recharge ARN, etc.)
 app.use('/api/puzzles', puzzleRoutes);  // Routes pour les puzzles du jour
+app.use('/api/friends', friendRoutes);  // Routes pour le système d'amis
 
 // Default API route
 app.get('/api', (req, res) => {

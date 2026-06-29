@@ -145,7 +145,22 @@ class GameDatabaseService {
           italian: { type: Number, default: 0, min: 0, max: 6 }
         },
         registeredAt: { type: Date, default: Date.now },
-        lastActive: { type: Date, default: Date.now }
+        lastActive: { type: Date, default: Date.now },
+        avatar: { type: String, default: '' },  // Photo de profil in-game (base64)
+        friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
+        friendRequests: {
+          sent:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }],
+          received: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Player' }]
+        },
+        notifications: [{
+          type:         { type: String, enum: ['friend_request', 'friend_accepted'], required: true },
+          fromPlayerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
+          fromUsername: { type: String, default: '' },
+          fromAvatar:   { type: String, default: '' },
+          message:      { type: String, default: '' },
+          read:         { type: Boolean, default: false },
+          createdAt:    { type: Date, default: Date.now }
+        }]
       }, { timestamps: true });
 
       // Créer un schéma pour les matchs du jeu

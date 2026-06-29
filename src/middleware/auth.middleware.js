@@ -35,7 +35,24 @@ exports.verifyToken = async (req, res, next) => {
       };
       req.userId = decoded.playerId; // Pour compatibilité
       req.userRole = decoded.role || 'player';
-      
+
+      // Résoudre le User principal lié à ce Player (pour profil/amis/etc.)
+      try {
+        const linkedUser = await User.findOne({
+          linkedGames: {
+            $elemMatch: {
+              gameId: decoded.gameId,
+              playerId: decoded.playerId.toString()
+            }
+          }
+        }).select('_id');
+        if (linkedUser) {
+          req.linkedUserId = linkedUser._id;
+        }
+      } catch (linkError) {
+        console.error('⚠️ Erreur résolution User lié au Player:', linkError);
+      }
+
       console.log('👤 Joueur ajouté à la requête');
       next();
     } else if (decoded.id) {

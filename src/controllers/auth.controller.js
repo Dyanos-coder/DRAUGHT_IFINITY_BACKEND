@@ -314,11 +314,49 @@ exports.login = async (req, res) => {
           });
         }
 
-        console.log(`✅ Connexion réussie au jeu ${game.name}:`, { 
+        console.log(`✅ Connexion réussie au jeu ${game.name}:`, {
           inGameUsername: playerInGame.inGameUsername,
           inGameId: playerInGame.inGameId,
           playerId: playerInGame._id
         });
+
+        // Lier le Player à un User dans la BD principale (nécessaire pour profil/amis)
+        try {
+          const playerIdStr = playerInGame._id.toString();
+          let user = await User.findOne({
+            $or: [
+              { email: playerInGame.inGameEmail },
+              { 'linkedGames': { $elemMatch: { gameId: game._id, playerId: playerIdStr } } }
+            ]
+          });
+
+          if (!user) {
+            // Créer un User minimal pour ce joueur (connexion au jeu uniquement)
+            const crypto = require('crypto');
+            user = new User({
+              email: playerInGame.inGameEmail,
+              username: playerInGame.inGameUsername,
+              password: crypto.randomBytes(24).toString('hex'), // haché par le pre-save hook
+            });
+          }
+
+          const alreadyLinked = user.linkedGames.some(
+            g => g.gameId.toString() === game._id.toString() && g.playerId === playerIdStr
+          );
+          if (!alreadyLinked) {
+            user.linkedGames.push({
+              gameId: game._id,
+              gameName: game.name,
+              playerId: playerIdStr,
+              inGameUsername: playerInGame.inGameUsername,
+              inGameEmail: playerInGame.inGameEmail,
+            });
+            await user.save();
+            console.log(`🔗 User <-> Player lié: ${user.username} <-> ${playerInGame.inGameUsername}`);
+          }
+        } catch (linkErr) {
+          console.error('⚠️ Lien User-Player échoué (non bloquant):', linkErr.message);
+        }
 
         // Générer un token JWT avec les infos du Player (pas du User)
         const token = jwt.sign(

@@ -1,4 +1,5 @@
 const User = require('../models/user.model');
+const gameDatabaseService = require('../services/gameDatabaseService');
 const Match = require('../models/match.model');
 const Tournament = require('../models/tournament.model');
 const Reward = require('../models/reward.model');
@@ -132,8 +133,8 @@ function isLevelProgression(oldLevel, newLevel) {
  */
 exports.getUserProfile = async (req, res) => {
   try {
-    const userId = req.userId;
-    
+    const userId = req.linkedUserId || req.userId;
+
     // Optimisation des champs populés et ajout d'index
     const user = await User.findById(userId)
       .select('-password -otpSecret')
@@ -166,6 +167,19 @@ exports.getUserProfile = async (req, res) => {
 
     const userResponse = user.toObject();
 
+    // En contexte jeu (token Player) : remplacer les infos par les données in-game
+    if (req.user && req.user.gameId) {
+      const gameId = req.user.gameId.toString();
+      const lg = (userResponse.linkedGames || []).find(
+        g => g.gameId && g.gameId.toString() === gameId
+      );
+      if (lg) {
+        if (lg.inGameUsername) userResponse.username = lg.inGameUsername;
+        if (lg.inGameEmail)    userResponse.email    = lg.inGameEmail;
+        userResponse.avatar = lg.cachedAvatar || userResponse.avatar || '';
+      }
+    }
+
     res.status(200).json({
       user: userResponse
     });
@@ -180,48 +194,49 @@ exports.getUserProfile = async (req, res) => {
  */
 exports.updateProfile = async (req, res) => {
   try {
-    const userId = req.userId; // Fourni par le middleware verifyToken
-    
-    // Extraire les champs mis à jour du corps de la demande
-    const { 
-      username, 
-      email, 
-      phoneNumber, 
+    const userId = req.linkedUserId || req.userId;
+    const isGameCtx = !!(req.user && req.user.gameId && req.user.playerId);
+
+    const {
+      username,
+      email,
+      phoneNumber,
       timezone,
       profile,
       avatar,
-      preferredCurrency 
+      preferredCurrency
     } = req.body;
-    
+
     console.log('Requête de mise à jour reçue avec les données:', {
       username, email, phoneNumber, timezone, profile, preferredCurrency,
       avatar: avatar ? (avatar.length > 50 ? avatar.substring(0, 50) + '...' : avatar) : null
     });
-    
-    // Vérifier si l'email ou le nom d'utilisateur sont déjà utilisés (s'ils ont été modifiés)
-    if (email || username) {
-      const existingUser = await User.findOne({
-        $and: [
-          { _id: { $ne: userId } }, // Ne pas inclure l'utilisateur actuel
-          { $or: [
-            ...(email ? [{ email }] : []),
-            ...(username ? [{ username }] : [])
-          ]}
-        ]
-      });
-      
-      if (existingUser) {
-        return res.status(400).json({ 
-          message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
+
+    // Vérifier l'unicité uniquement pour les champs qu'on touche vraiment dans la BD principale
+    // En contexte jeu : ni username ni email ne modifient le User → pas de vérification
+    if (!isGameCtx) {
+      const fieldsToCheck = [
+        ...(username ? [{ username }] : []),
+        ...(email ? [{ email }] : [])
+      ];
+      if (fieldsToCheck.length > 0) {
+        const existingUser = await User.findOne({
+          $and: [{ _id: { $ne: userId } }, { $or: fieldsToCheck }]
         });
+        if (existingUser) {
+          return res.status(400).json({
+            message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà'
+          });
+        }
       }
     }
-    
-    // Préparer les champs à mettre à jour
+
+    // Préparer les champs à mettre à jour sur le User principal
     const updateFields = {};
-    
-    if (username) updateFields.username = username;
-    if (email) updateFields.email = email;
+
+    // En contexte jeu : username → inGameUsername et email → inGameEmail (traités après)
+    if (!isGameCtx && username) updateFields.username = username;
+    if (!isGameCtx && email)    updateFields.email    = email;
     if (phoneNumber !== undefined) updateFields.phoneNumber = phoneNumber;
     if (preferredCurrency) updateFields.preferredCurrency = preferredCurrency;
     
@@ -260,14 +275,59 @@ exports.updateProfile = async (req, res) => {
     if (!updatedUser) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-    
-    console.log('✅ Profil mis à jour avec succès:', { 
-      id: updatedUser._id, 
-      username: updatedUser.username,
-      avatar: updatedUser.avatar || '(vide)'
+
+    // En contexte jeu : mettre à jour l'inGameUsername dans linkedGames et dans la BD du jeu
+    let returnedUsername = updatedUser.username;
+    let returnedEmail    = updatedUser.email;
+    let returnedAvatar   = updatedUser.avatar;
+    if (isGameCtx && (username || email)) {
+      const gameId = req.user.gameId.toString();
+      const playerId = req.user.playerId.toString();
+      try {
+        // Mise à jour du cache dans linkedGames
+        const cacheUpdate = {};
+        if (username) cacheUpdate['linkedGames.$.inGameUsername'] = username;
+        if (email)    cacheUpdate['linkedGames.$.inGameEmail']    = email;
+        await User.updateOne(
+          { _id: userId, 'linkedGames.gameId': req.user.gameId, 'linkedGames.playerId': playerId },
+          { $set: cacheUpdate }
+        );
+        // Mise à jour dans la BD du jeu (Player)
+        const conn = gameDatabaseService.getGameConnection(gameId);
+        if (conn) {
+          const Player = conn.model('Player');
+          const playerUpdate = {};
+          if (username) { playerUpdate.inGameUsername = username; playerUpdate.inGameId = username; }
+          if (email)      playerUpdate.inGameEmail = email;
+          await Player.findByIdAndUpdate(playerId, { $set: playerUpdate });
+        }
+        if (username) returnedUsername = username;
+      } catch (e) {
+        console.error('⚠️ Sync infos jeu:', e.message);
+      }
+    } else if (isGameCtx) {
+      // Retourner l'inGameUsername existant si pas de mise à jour du username
+      const lg = (updatedUser.linkedGames || []).find(
+        g => g.gameId && g.gameId.toString() === req.user.gameId.toString()
+      );
+      if (lg) {
+        returnedUsername = lg.inGameUsername || updatedUser.username;
+        returnedEmail    = lg.inGameEmail    || updatedUser.email;
+        returnedAvatar   = lg.cachedAvatar   || updatedUser.avatar || '';
+      }
+    }
+
+    console.log('✅ Profil mis à jour avec succès:', {
+      id: updatedUser._id,
+      username: returnedUsername,
+      avatar: returnedAvatar || '(vide)'
     });
-    
-    res.status(200).json(updatedUser);
+
+    const responseData = updatedUser.toObject ? updatedUser.toObject() : { ...updatedUser._doc };
+    responseData.username = returnedUsername;
+    responseData.email    = returnedEmail;
+    responseData.avatar   = returnedAvatar;
+    res.status(200).json(responseData);
   } catch (error) {
     console.error('❌ Erreur lors de la mise à jour du profil:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -279,30 +339,51 @@ exports.updateProfile = async (req, res) => {
  */
 exports.updateAvatar = async (req, res) => {
   try {
-    const userId = req.userId; // Fourni par le middleware verifyToken
+    const userId = req.linkedUserId || req.userId;
     const { avatar } = req.body;
-    
+
     if (!avatar) {
       return res.status(400).json({ message: 'L\'URL de l\'avatar est requise' });
     }
-    
-    // Mettre à jour uniquement l'avatar
+
+    // Mettre à jour l'avatar dans la BD principale
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: { avatar } },
       { new: true }
     )
     .select('-password -otpSecret');
-    
+
     if (!updatedUser) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-    
-    console.log('✅ Avatar mis à jour avec succès:', { 
-      id: updatedUser._id, 
-      username: updatedUser.username 
+
+    // Si appelé depuis l'app de jeu (token Player), synchroniser aussi avec la BD du jeu
+    if (req.user && req.user.gameId && req.user.playerId) {
+      try {
+        const gameId = req.user.gameId.toString();
+        const playerId = req.user.playerId.toString();
+        const conn = gameDatabaseService.getGameConnection(gameId);
+        if (conn) {
+          const Player = conn.model('Player');
+          await Player.findByIdAndUpdate(playerId, { $set: { avatar } });
+          // Mettre à jour le cache dans User.linkedGames
+          await User.updateOne(
+            { _id: userId, 'linkedGames.gameId': req.user.gameId, 'linkedGames.playerId': playerId },
+            { $set: { 'linkedGames.$.cachedAvatar': avatar } }
+          );
+          console.log('✅ Avatar synchronisé dans la BD du jeu:', gameId);
+        }
+      } catch (gameErr) {
+        console.error('⚠️ Sync avatar jeu échoué (non bloquant):', gameErr.message);
+      }
+    }
+
+    console.log('✅ Avatar mis à jour avec succès:', {
+      id: updatedUser._id,
+      username: updatedUser.username
     });
-    
+
     res.status(200).json(updatedUser);
   } catch (error) {
     console.error('❌ Erreur lors de la mise à jour de l\'avatar:', error);
@@ -315,7 +396,7 @@ exports.updateAvatar = async (req, res) => {
  */
 exports.updatePassword = async (req, res) => {
   try {
-    const userId = req.userId; // Fourni par le middleware verifyToken
+    const userId = req.linkedUserId || req.userId; // Fourni par le middleware verifyToken
     const { currentPassword, newPassword } = req.body;
     
     // Vérification des champs obligatoires

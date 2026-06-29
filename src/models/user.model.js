@@ -114,15 +114,21 @@ const userSchema = new Schema({
       lastSynced: { type: Date, default: Date.now }
     },
     soldePiece: { type: Number, default: 10000000 }, // Pièces pour ce jeu
-    soldeEnergie: { type: Number, default: 10000 }   // Énergie pour ce jeu
+    soldeEnergie: { type: Number, default: 10000 },  // Énergie pour ce jeu
+    cachedAvatar: { type: String, default: '' }       // Photo de profil in-game (base64)
   }],
   ownedThemes: [{
     type: { type: String, enum: ['board', 'background'], required: true },
     path: { type: String, required: true },
     purchasedAt: { type: Date, default: Date.now },
     price: { type: Number, required: true }
-  }]
-}, { 
+  }],
+  friends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  friendRequests: {
+    sent: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    received: [{ type: Schema.Types.ObjectId, ref: 'User' }]
+  }
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
